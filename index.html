@@ -66,16 +66,21 @@
     </main>
   </div>
 
-  <!-- ====== AI INSIGHTS PANEL ====== -->
-  <div class="ai-panel" id="ai-panel">
-    <div class="ai-panel-header" id="ai-panel-header">
-      <div class="ai-panel-header-icon">✦</div>
-      <div class="ai-panel-header-title">JPM IA — Insights</div>
-      <div class="ai-panel-header-badge" id="ai-panel-badge">6</div>
-      <div class="ai-panel-toggle">▼</div>
+  <!-- ====== AI CHAT ====== -->
+  <button class="chat-fab" id="chat-fab" onclick="toggleChat()">✦</button>
+  <div class="chat-panel" id="chat-panel">
+    <div class="chat-header">
+      <div class="chat-header-icon">✦</div>
+      <div class="chat-header-info">
+        <div class="chat-header-title">JPM IA — Assistant</div>
+        <div class="chat-header-subtitle">Posez vos questions sur les opérations</div>
+      </div>
+      <button class="chat-header-close" onclick="toggleChat()">×</button>
     </div>
-    <div class="ai-panel-body" id="ai-panel-body">
-      <!-- Rendered by app.js -->
+    <div class="chat-messages" id="chat-messages"></div>
+    <div class="chat-input-area">
+      <input type="text" class="chat-input" id="chat-input" placeholder="Posez une question..." onkeydown="if(event.key==='Enter')sendChatMessage()">
+      <button class="chat-send" onclick="sendChatMessage()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button>
     </div>
   </div>
 

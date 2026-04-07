@@ -39,6 +39,7 @@ function renderPage() {
     'invoice': () => renderInvoiceDetail(id),
     'ingestion': renderIngestion,
     'purchase-orders': renderPurchaseOrders,
+    'po': () => renderPODetail(id),
     'price-lists': renderPriceLists,
     'delivery-tickets': renderDeliveryTickets,
     'projects': renderProjects,
@@ -526,7 +527,7 @@ function renderPurchaseOrders() {
             ${PURCHASE_ORDERS.map(po => {
               const pct = Math.round((po.amountUsed / po.amountAuthorized) * 100);
               const color = pct > 90 ? 'red' : pct > 70 ? 'amber' : 'blue';
-              return `<tr style="cursor:default"><td class="col-id">${po.id}</td><td>${getProject(po.projectId).name}</td><td class="supplier-name">${getSupplier(po.supplierId).name}</td><td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${po.description}</td><td class="col-amount">${formatCurrency(po.amountAuthorized)}</td><td class="col-amount">${formatCurrency(po.amountUsed)}</td><td><div style="display:flex;align-items:center;gap:8px"><div class="progress-bar" style="width:80px"><div class="progress-bar-fill ${color}" style="width:${pct}%"></div></div><span style="font-size:11px;font-weight:600">${pct}%</span></div></td><td>${statusBadge(po.status === 'Actif' ? 'Validée' : 'En attente')}</td></tr>`;
+              return `<tr onclick="navigate('po/${po.id}')"><td class="col-id">${po.id}</td><td>${getProject(po.projectId).name}</td><td class="supplier-name">${getSupplier(po.supplierId).name}</td><td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${po.description}</td><td class="col-amount">${formatCurrency(po.amountAuthorized)}</td><td class="col-amount">${formatCurrency(po.amountUsed)}</td><td><div style="display:flex;align-items:center;gap:8px"><div class="progress-bar" style="width:80px"><div class="progress-bar-fill ${color}" style="width:${pct}%"></div></div><span style="font-size:11px;font-weight:600">${pct}%</span></div></td><td>${statusBadge(po.status === 'Actif' ? 'Validée' : 'En attente')}</td></tr>`;
             }).join('')}
           </tbody>
         </table>
@@ -704,19 +705,199 @@ function renderProjectDetail(id) {
 }
 
 // ============================================================
-// AI Insights Panel
+// PAGE: PO Detail
 // ============================================================
-function renderAIPanel() {
-  const body = document.getElementById('ai-panel-body');
-  body.innerHTML = AI_INSIGHTS.map(insight => `
-    <div class="ai-insight-item severity-${insight.severity}">
-      <div class="ai-insight-icon">${insight.icon}</div>
-      <div>
-        <div class="ai-insight-text">${insight.message}</div>
-        <div class="ai-insight-date">${formatDate(insight.date)}</div>
+function renderPODetail(id) {
+  const po = getPO(id);
+  if (!po) return;
+  const supplier = getSupplier(po.supplierId);
+  const project = getProject(po.projectId);
+  const linkedInvoices = INVOICES.filter(inv => inv.poId === id);
+  const linkedTickets = DELIVERY_TICKETS.filter(t => linkedInvoices.some(inv => inv.id === t.invoiceId));
+  const pct = Math.round((po.amountUsed / po.amountAuthorized) * 100);
+  const color = pct > 90 ? 'red' : pct > 70 ? 'amber' : 'blue';
+  const totalInvoiced = linkedInvoices.reduce((s, i) => s + i.totalAmount, 0);
+  const main = document.getElementById('main-content');
+
+  main.innerHTML = `
+    <div class="page-header">
+      <div class="page-header-top">
+        <div>
+          <div class="back-link" onclick="navigate('purchase-orders')">${ICONS.arrowLeft} Retour aux bons de commande</div>
+          <h1 class="page-title">Bon de commande ${po.id}</h1>
+          <p class="page-subtitle">${supplier.name} — ${project.name}</p>
+        </div>
+        <div class="page-actions">${statusBadge(po.status === 'Actif' ? 'Validée' : 'En attente')}</div>
       </div>
     </div>
+    <div class="page-body page-enter">
+      <div class="invoice-header-info">
+        <div class="info-block"><div class="info-block-label">Fournisseur</div><div class="info-block-value">${supplier.name}</div></div>
+        <div class="info-block"><div class="info-block-label">Projet</div><div class="info-block-value">${project.name}</div></div>
+        <div class="info-block"><div class="info-block-label">Date d'émission</div><div class="info-block-value">${formatDate(po.date)}</div></div>
+        <div class="info-block"><div class="info-block-label">Montant autorisé</div><div class="info-block-value large">${formatCurrency(po.amountAuthorized)}</div></div>
+      </div>
+
+      <div class="grid-2-1">
+        <div>
+          <div class="card mb-6">
+            <div class="card-header"><span class="card-title">Description</span></div>
+            <div class="card-body"><p style="font-size:14px;color:var(--color-text-secondary)">${po.description}</p></div>
+          </div>
+
+          <div class="card mb-6">
+            <div class="card-header"><span class="card-title">Utilisation du budget</span><span style="font-size:12px;font-weight:600;color:${pct > 85 ? 'var(--color-error)' : 'var(--color-text-secondary)'}">${pct}% utilisé</span></div>
+            <div class="card-body">
+              <div class="progress-bar" style="height:14px"><div class="progress-bar-fill ${color}" style="width:${pct}%"></div></div>
+              <div class="progress-info mt-4">
+                <span>Utilisé : ${formatCurrency(po.amountUsed)}</span>
+                <span>Reste : ${formatCurrency(po.amountAuthorized - po.amountUsed)}</span>
+              </div>
+              <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-top:20px">
+                <div class="info-block"><div class="info-block-label">Autorisé</div><div class="info-block-value">${formatCurrency(po.amountAuthorized)}</div></div>
+                <div class="info-block"><div class="info-block-label">Total facturé</div><div class="info-block-value">${formatCurrency(totalInvoiced)}</div></div>
+                <div class="info-block"><div class="info-block-label">Factures liées</div><div class="info-block-value">${linkedInvoices.length}</div></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header"><span class="card-title">Factures liées</span><span style="font-size:11px;color:var(--color-text-tertiary)">${linkedInvoices.length} facture(s)</span></div>
+            <div class="card-body" style="padding:0">
+              ${linkedInvoices.length > 0 ? `
+              <table class="data-table">
+                <thead><tr><th>N° Facture</th><th>Date</th><th>Montant</th><th>Statut</th></tr></thead>
+                <tbody>${linkedInvoices.map(inv => `<tr onclick="navigate('invoice/${inv.id}')"><td class="col-id">${inv.invoiceNumber}</td><td>${formatDate(inv.date)}</td><td class="col-amount">${formatCurrency(inv.totalAmount)}</td><td>${statusBadge(inv.status)}</td></tr>`).join('')}</tbody>
+              </table>` : '<div class="empty-state"><div class="empty-state-icon">📋</div><div class="empty-state-title">Aucune facture liée</div></div>'}
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div class="card mb-6">
+            <div class="card-header"><span class="card-title">Informations fournisseur</span></div>
+            <div class="card-body">
+              <div style="margin-bottom:12px"><div class="info-block-label">Contact</div><div style="font-size:13px;font-weight:600">${supplier.contact}</div></div>
+              <div style="margin-bottom:12px"><div class="info-block-label">Téléphone</div><div style="font-size:13px">${supplier.phone}</div></div>
+              <div style="margin-bottom:12px"><div class="info-block-label">Courriel</div><div style="font-size:13px"><a href="mailto:${supplier.email}">${supplier.email}</a></div></div>
+              <div><div class="info-block-label">Ville</div><div style="font-size:13px">${supplier.city}</div></div>
+            </div>
+          </div>
+
+          ${linkedTickets.length > 0 ? `
+          <div class="card">
+            <div class="card-header"><span class="card-title">Tickets de livraison</span></div>
+            <div class="card-body" style="padding:0">
+              <table class="data-table">
+                <thead><tr><th>Ticket</th><th>Matériau</th><th>Qté</th></tr></thead>
+                <tbody>${linkedTickets.slice(0, 8).map(t => `<tr style="cursor:default"><td class="col-id">${t.id}</td><td>${t.material}</td><td>${formatNumber(t.quantity)} ${t.unit}</td></tr>`).join('')}</tbody>
+              </table>
+            </div>
+          </div>` : ''}
+        </div>
+      </div>
+    </div>`;
+}
+
+// ============================================================
+// AI Chat System
+// ============================================================
+let chatOpen = false;
+let chatMessages = [];
+
+function toggleChat() {
+  chatOpen = !chatOpen;
+  document.getElementById('chat-panel').classList.toggle('open', chatOpen);
+  document.getElementById('chat-fab').classList.toggle('hidden', chatOpen);
+  if (chatOpen && chatMessages.length === 0) initChat();
+}
+
+function initChat() {
+  addBotMessage(`Bonjour Jean-Philippe! 👋 Je suis l'assistant IA de <strong>JPM Ops</strong>. Je peux vous aider avec :<div class="chat-suggestions"><button class="chat-suggestion-btn" onclick="askChat('anomalies')">Anomalies en cours</button><button class="chat-suggestion-btn" onclick="askChat('budget montoni')">Budget Montoni</button><button class="chat-suggestion-btn" onclick="askChat('fournisseurs')">Top fournisseurs</button><button class="chat-suggestion-btn" onclick="askChat('factures en attente')">Factures en attente</button></div>`);
+}
+
+function addBotMessage(html) {
+  chatMessages.push({ role: 'bot', html });
+  renderChatMessages();
+}
+
+function addUserMessage(text) {
+  chatMessages.push({ role: 'user', html: text });
+  renderChatMessages();
+}
+
+function renderChatMessages() {
+  const container = document.getElementById('chat-messages');
+  container.innerHTML = chatMessages.map(m => `
+    <div class="chat-msg ${m.role}">
+      <div class="chat-msg-avatar">${m.role === 'bot' ? '✦' : 'JPM'}</div>
+      <div class="chat-msg-bubble">${m.html}</div>
+    </div>
   `).join('');
+  container.scrollTop = container.scrollHeight;
+}
+
+function showTyping() {
+  const container = document.getElementById('chat-messages');
+  container.innerHTML += '<div class="chat-typing" id="chat-typing"><div class="chat-typing-dot"></div><div class="chat-typing-dot"></div><div class="chat-typing-dot"></div></div>';
+  container.scrollTop = container.scrollHeight;
+}
+
+function hideTyping() {
+  document.getElementById('chat-typing')?.remove();
+}
+
+function sendChatMessage() {
+  const input = document.getElementById('chat-input');
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = '';
+  addUserMessage(text);
+  showTyping();
+  setTimeout(() => { hideTyping(); processChat(text); }, 800 + Math.random() * 1200);
+}
+
+function askChat(text) {
+  addUserMessage(text);
+  showTyping();
+  setTimeout(() => { hideTyping(); processChat(text); }, 800 + Math.random() * 800);
+}
+
+function processChat(input) {
+  const q = input.toLowerCase();
+  const kpis = getKPIs();
+
+  if (q.includes('anomali')) {
+    const anomalies = INVOICES.filter(i => i.status === 'Anomalie');
+    addBotMessage(`Il y a actuellement <strong>${anomalies.length} anomalies</strong> actives :\n${anomalies.map(a => `<br>• <strong>${getSupplier(a.supplierId).name}</strong> — ${a.statusDetail} (${formatCurrency(a.totalAmount)})`).join('')}<br><br>La plus critique est la facture <code>${anomalies[0]?.invoiceNumber}</code> avec un écart de prix de 9.6% sur l'excavation.`);
+  } else if (q.includes('budget') && q.includes('montoni')) {
+    const p = PROJECTS[0];
+    const pct = Math.round((p.spent / p.budget) * 100);
+    addBotMessage(`Le <strong>Projet Montoni Phase 3</strong> est à <strong>${pct}%</strong> du budget :<br><br>• Budget : ${formatCurrency(p.budget)}<br>• Dépensé : ${formatCurrency(p.spent)}<br>• Reste : ${formatCurrency(p.budget - p.spent)}<br><br>⚠️ À ce rythme, le budget sera épuisé dans environ <strong>3 semaines</strong>. Je recommande une revue des engagements en cours.`);
+  } else if (q.includes('fournisseur')) {
+    const spend = {};
+    INVOICES.forEach(inv => { const s = getSupplier(inv.supplierId); spend[s.name] = (spend[s.name] || 0) + inv.totalAmount; });
+    const top = Object.entries(spend).sort((a,b) => b[1] - a[1]).slice(0, 5);
+    addBotMessage(`Voici le <strong>top 5 fournisseurs</strong> par volume facturé ce mois :<br><br>${top.map((t, i) => `${i+1}. <strong>${t[0]}</strong> — ${formatCurrency(t[1])}`).join('<br>')}<br><br>💡 Pierre Excavation Inc. représente la plus grande part avec une variance de prix de 12% sur l'excavation.`);
+  } else if (q.includes('attente') || q.includes('pending') || q.includes('approbation')) {
+    const pending = INVOICES.filter(i => i.status === 'En attente');
+    addBotMessage(`Il y a <strong>${pending.length} factures en attente</strong> d'approbation :<br><br>${pending.map(p => `• <code>${p.invoiceNumber}</code> — ${getSupplier(p.supplierId).name} — ${formatCurrency(p.totalAmount)}`).join('<br>')}<br><br>⏰ ${pending.length > 0 ? 'Certaines sont en attente depuis plus de 48h. Une approbation rapide évitera les retards de paiement.' : 'Tout est à jour!'}`);
+  } else if (q.includes('résumé') || q.includes('dashboard') || q.includes('resume') || q.includes('overview')) {
+    addBotMessage(`📊 <strong>Résumé des opérations — Avril 2026</strong><br><br>• Factures traitées : <strong>${kpis.total}</strong><br>• Auto-approuvées : <strong>${kpis.autoApprovedPct}%</strong><br>• Anomalies : <strong>${kpis.anomalies}</strong><br>• En attente : <strong>${kpis.pending}</strong><br>• Temps économisé : <strong>34h</strong> (~4 250$)<br><br>Le taux d'auto-approbation est en hausse de 8% par rapport au mois dernier. 🎯`);
+  } else if (q.includes('pierre excavation') || q.includes('pierre exc')) {
+    const invs = getInvoicesBySupplier('SUP-001');
+    addBotMessage(`<strong>Pierre Excavation Inc.</strong> — Fiche fournisseur :<br><br>• Contact : Marc-André Picard<br>• Factures ce mois : <strong>${invs.length}</strong><br>• Total facturé : <strong>${formatCurrency(invs.reduce((s,i) => s+i.totalAmount, 0))}</strong><br><br>⚠️ Alerte : variance de prix de <strong>12%</strong> sur l'excavation ce mois-ci (28.50$/m³ vs 26.00$/m³ contractuel). 1 facture rejetée pour doublon.`);
+  } else if (q.includes('prix') || q.includes('tarif') || q.includes('price')) {
+    addBotMessage(`📋 Analyse des <strong>listes de prix</strong> :<br><br>• Pierre 0-3/4 : 40$ à 44$/tonne selon fournisseur<br>• MG-20 : 37.25$ à 39.50$/tonne<br>• Asphalte chaud : 125$ à 128$/tonne<br>• Excavation : 24.50$ à 28.50$/m³<br><br>💡 Carrière Laval offre des prix <strong>3.5% inférieurs</strong> à Pierre Excavation pour le MG-20 sur le même projet.`);
+  } else if (q.includes('doublon') || q.includes('duplicate')) {
+    addBotMessage(`🚨 <strong>1 facture en doublon</strong> détectée et rejetée ce mois :<br><br>• <code>PE-2024-0885</code> — Pierre Excavation Inc.<br>• Montant : ${formatCurrency(52000)}<br>• Les tickets de livraison étaient déjà associés à la facture PE-2024-0870<br><br>✅ Économie réalisée : <strong>52 000$</strong> grâce à la détection automatique.`);
+  } else {
+    const responses = [
+      `Bonne question! D'après mes analyses, voici ce que je peux vous dire :<br><br>• ${kpis.total} factures traitées ce mois<br>• ${kpis.anomalies} anomalies à surveiller<br>• Taux d'auto-approbation : ${kpis.autoApprovedPct}%<br><br>Voulez-vous que j'approfondisse un aspect en particulier?`,
+      `Je n'ai pas de réponse spécifique pour cette question, mais voici les <strong>alertes prioritaires</strong> :<br><br>• ⚠️ Variance de prix Pierre Excavation (+12%)<br>• ⏰ 3 factures en attente depuis 48h+<br>• 💰 Projet Montoni à 85% du budget<br><br>Essayez de me poser des questions sur les anomalies, budgets, fournisseurs ou factures en attente.`,
+    ];
+    addBotMessage(responses[Math.floor(Math.random() * responses.length)]);
+  }
 }
 
 // ============================================================
@@ -730,15 +911,6 @@ document.addEventListener('DOMContentLoaded', () => {
       if (page) navigate(page);
     });
   });
-
-  // AI Panel toggle
-  const aiPanel = document.getElementById('ai-panel');
-  document.getElementById('ai-panel-header').addEventListener('click', () => {
-    aiPanel.classList.toggle('collapsed');
-  });
-
-  // Render AI panel
-  renderAIPanel();
 
   // Initial page
   renderDashboard();
