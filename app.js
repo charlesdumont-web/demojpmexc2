@@ -800,10 +800,86 @@ function renderPODetail(id) {
 }
 
 // ============================================================
-// AI Chat System
+// AI Chat System — OpenAI GPT Integration
 // ============================================================
+// OPENAI_API_KEY is loaded from config.js
 let chatOpen = false;
 let chatMessages = [];
+let conversationHistory = [];
+
+function markdownToHtml(text) {
+  return text
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+    .replace(/`([^`]+)`/g, '<code>$1</code>')
+    .replace(/^### (.+)$/gm, '<strong style="font-size:14px">$1</strong>')
+    .replace(/^## (.+)$/gm, '<strong style="font-size:15px">$1</strong>')
+    .replace(/^# (.+)$/gm, '<strong style="font-size:16px">$1</strong>')
+    .replace(/^[\-•] (.+)$/gm, '• $1')
+    .replace(/\n/g, '<br>');
+}
+
+function buildSystemPrompt() {
+  const kpis = getKPIs();
+  const supplierSpend = {};
+  INVOICES.forEach(inv => {
+    const s = getSupplier(inv.supplierId);
+    supplierSpend[s.name] = (supplierSpend[s.name] || 0) + inv.totalAmount;
+  });
+  const topSuppliers = Object.entries(supplierSpend).sort((a,b) => b[1]-a[1]);
+
+  return `Tu es l'assistant IA de JPM Ops, la plateforme intelligente de gestion des comptes fournisseurs pour JPM Excavation, une entreprise d'excavation et construction au Québec (~100 employés, 400-500 projets/an).
+
+Tu parles TOUJOURS en français québécois professionnel. Tu es concis, précis et orienté données. Tu utilises des émojis avec parcimonie pour les alertes importantes. Formate tes réponses en HTML léger (utilise <strong>, <br>, <code>, •).
+
+DONNÉES EN TEMPS RÉEL DE LA PLATEFORME :
+
+=== KPIs ===
+- Factures ce mois : ${kpis.total}
+- Auto-approuvées : ${kpis.autoApprovedPct}%
+- Anomalies actives : ${kpis.anomalies}
+- En attente d'approbation : ${kpis.pending}
+- Temps économisé estimé : 34h (~4 250$)
+
+=== FOURNISSEURS ===
+${SUPPLIERS.map(s => `- ${s.name} (${s.id}) : ${s.contact}, ${s.city}, ${s.phone}, ${s.email}`).join('\n')}
+
+=== PROJETS ===
+${PROJECTS.map(p => {
+  const pct = Math.round((p.spent / p.budget) * 100);
+  return `- ${p.name} (${p.id}) : ${p.type}, ${p.client}, ${p.location}, Budget: ${p.budget}$, Dépensé: ${p.spent}$ (${pct}%), ${p.invoiceCount} factures, ${p.anomalyCount} anomalies, Statut: ${p.status}`;
+}).join('\n')}
+
+=== FACTURES ===
+${INVOICES.map(inv => `- ${inv.invoiceNumber} (${inv.id}) : ${getSupplier(inv.supplierId).name}, Projet: ${getProject(inv.projectId).name}, Montant: ${inv.totalAmount}$, Date: ${inv.date}, Statut: ${inv.status}, Confiance IA: ${inv.confidence}%, PO: ${inv.poId || 'N/A'}, Détail: ${inv.statusDetail}`).join('\n')}
+
+=== BONS DE COMMANDE ===
+${PURCHASE_ORDERS.map(po => `- ${po.id} : ${getSupplier(po.supplierId).name}, Projet: ${getProject(po.projectId).name}, Autorisé: ${po.amountAuthorized}$, Utilisé: ${po.amountUsed}$ (${Math.round(po.amountUsed/po.amountAuthorized*100)}%), ${po.description}`).join('\n')}
+
+=== LISTES DE PRIX ===
+${PRICE_LISTS.map(pl => `- ${pl.material}: ${pl.unitPrice}$/${pl.unit}, Fournisseur: ${getSupplier(pl.supplierId).name}, Projet: ${getProject(pl.projectId).name}`).join('\n')}
+
+=== TOP FOURNISSEURS PAR VOLUME ===
+${topSuppliers.map(([name, amount], i) => `${i+1}. ${name} : ${amount}$`).join('\n')}
+
+=== TICKETS DE LIVRAISON ===
+${DELIVERY_TICKETS.map(t => `- ${t.id}: ${t.material}, ${t.quantity} ${t.unit}, ${getSupplier(t.supplierId).name}, Projet: ${getProject(t.projectId).name}, Date: ${t.date}, Camion: ${t.truckId}`).join('\n')}
+
+=== ALERTES IA ACTIVES ===
+${AI_INSIGHTS.map(a => `- [${a.severity}] ${a.message} (${a.date})`).join('\n')}
+
+INSTRUCTIONS CRITIQUES DE FORMATAGE :
+- Tu DOIS répondre en texte BRUT avec du markdown simple.
+- Utilise **gras** pour les éléments importants.
+- Utilise des retours à la ligne pour séparer les sections.
+- Utilise • pour les listes à puces.
+- Utilise \`code\` pour les numéros de facture et PO.
+- NE PAS utiliser de balises HTML.
+- Sois concis : maximum 150 mots par réponse.
+- Sois proactif : signale les risques, recommande des actions concrètes.
+- Réponds TOUJOURS avec les données réelles ci-dessus, jamais d'inventions.
+- Si on te demande quelque chose hors contexte, ramène poliment la conversation aux opérations.`;
+}
 
 function toggleChat() {
   chatOpen = !chatOpen;
@@ -813,16 +889,19 @@ function toggleChat() {
 }
 
 function initChat() {
-  addBotMessage(`Bonjour Jean-Philippe! 👋 Je suis l'assistant IA de <strong>JPM Ops</strong>. Je peux vous aider avec :<div class="chat-suggestions"><button class="chat-suggestion-btn" onclick="askChat('anomalies')">Anomalies en cours</button><button class="chat-suggestion-btn" onclick="askChat('budget montoni')">Budget Montoni</button><button class="chat-suggestion-btn" onclick="askChat('fournisseurs')">Top fournisseurs</button><button class="chat-suggestion-btn" onclick="askChat('factures en attente')">Factures en attente</button></div>`);
+  conversationHistory = [{ role: 'system', content: buildSystemPrompt() }];
+  addBotMessage(`Bonjour Jean-Philippe! 👋 Je suis l'assistant IA de <strong>JPM Ops</strong>, propulsé par intelligence artificielle. Posez-moi n'importe quelle question sur vos opérations.<div class="chat-suggestions"><button class="chat-suggestion-btn" onclick="askChat('Quelles sont les anomalies en cours?')">Anomalies en cours</button><button class="chat-suggestion-btn" onclick="askChat('État du budget Montoni Phase 3')">Budget Montoni</button><button class="chat-suggestion-btn" onclick="askChat('Quels sont mes top fournisseurs?')">Top fournisseurs</button><button class="chat-suggestion-btn" onclick="askChat('Résumé des opérations du mois')">Résumé mensuel</button></div>`, false);
 }
 
-function addBotMessage(html) {
+function addBotMessage(html, addToHistory = true) {
   chatMessages.push({ role: 'bot', html });
+  if (addToHistory) conversationHistory.push({ role: 'assistant', content: html });
   renderChatMessages();
 }
 
 function addUserMessage(text) {
   chatMessages.push({ role: 'user', html: text });
+  conversationHistory.push({ role: 'user', content: text });
   renderChatMessages();
 }
 
@@ -853,50 +932,44 @@ function sendChatMessage() {
   if (!text) return;
   input.value = '';
   addUserMessage(text);
-  showTyping();
-  setTimeout(() => { hideTyping(); processChat(text); }, 800 + Math.random() * 1200);
+  callOpenAI();
 }
 
 function askChat(text) {
   addUserMessage(text);
-  showTyping();
-  setTimeout(() => { hideTyping(); processChat(text); }, 800 + Math.random() * 800);
+  callOpenAI();
 }
 
-function processChat(input) {
-  const q = input.toLowerCase();
-  const kpis = getKPIs();
+async function callOpenAI() {
+  showTyping();
+  try {
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${OPENAI_API_KEY}`
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        messages: conversationHistory,
+        max_tokens: 500,
+        temperature: 0.7
+      })
+    });
 
-  if (q.includes('anomali')) {
-    const anomalies = INVOICES.filter(i => i.status === 'Anomalie');
-    addBotMessage(`Il y a actuellement <strong>${anomalies.length} anomalies</strong> actives :\n${anomalies.map(a => `<br>• <strong>${getSupplier(a.supplierId).name}</strong> — ${a.statusDetail} (${formatCurrency(a.totalAmount)})`).join('')}<br><br>La plus critique est la facture <code>${anomalies[0]?.invoiceNumber}</code> avec un écart de prix de 9.6% sur l'excavation.`);
-  } else if (q.includes('budget') && q.includes('montoni')) {
-    const p = PROJECTS[0];
-    const pct = Math.round((p.spent / p.budget) * 100);
-    addBotMessage(`Le <strong>Projet Montoni Phase 3</strong> est à <strong>${pct}%</strong> du budget :<br><br>• Budget : ${formatCurrency(p.budget)}<br>• Dépensé : ${formatCurrency(p.spent)}<br>• Reste : ${formatCurrency(p.budget - p.spent)}<br><br>⚠️ À ce rythme, le budget sera épuisé dans environ <strong>3 semaines</strong>. Je recommande une revue des engagements en cours.`);
-  } else if (q.includes('fournisseur')) {
-    const spend = {};
-    INVOICES.forEach(inv => { const s = getSupplier(inv.supplierId); spend[s.name] = (spend[s.name] || 0) + inv.totalAmount; });
-    const top = Object.entries(spend).sort((a,b) => b[1] - a[1]).slice(0, 5);
-    addBotMessage(`Voici le <strong>top 5 fournisseurs</strong> par volume facturé ce mois :<br><br>${top.map((t, i) => `${i+1}. <strong>${t[0]}</strong> — ${formatCurrency(t[1])}`).join('<br>')}<br><br>💡 Pierre Excavation Inc. représente la plus grande part avec une variance de prix de 12% sur l'excavation.`);
-  } else if (q.includes('attente') || q.includes('pending') || q.includes('approbation')) {
-    const pending = INVOICES.filter(i => i.status === 'En attente');
-    addBotMessage(`Il y a <strong>${pending.length} factures en attente</strong> d'approbation :<br><br>${pending.map(p => `• <code>${p.invoiceNumber}</code> — ${getSupplier(p.supplierId).name} — ${formatCurrency(p.totalAmount)}`).join('<br>')}<br><br>⏰ ${pending.length > 0 ? 'Certaines sont en attente depuis plus de 48h. Une approbation rapide évitera les retards de paiement.' : 'Tout est à jour!'}`);
-  } else if (q.includes('résumé') || q.includes('dashboard') || q.includes('resume') || q.includes('overview')) {
-    addBotMessage(`📊 <strong>Résumé des opérations — Avril 2026</strong><br><br>• Factures traitées : <strong>${kpis.total}</strong><br>• Auto-approuvées : <strong>${kpis.autoApprovedPct}%</strong><br>• Anomalies : <strong>${kpis.anomalies}</strong><br>• En attente : <strong>${kpis.pending}</strong><br>• Temps économisé : <strong>34h</strong> (~4 250$)<br><br>Le taux d'auto-approbation est en hausse de 8% par rapport au mois dernier. 🎯`);
-  } else if (q.includes('pierre excavation') || q.includes('pierre exc')) {
-    const invs = getInvoicesBySupplier('SUP-001');
-    addBotMessage(`<strong>Pierre Excavation Inc.</strong> — Fiche fournisseur :<br><br>• Contact : Marc-André Picard<br>• Factures ce mois : <strong>${invs.length}</strong><br>• Total facturé : <strong>${formatCurrency(invs.reduce((s,i) => s+i.totalAmount, 0))}</strong><br><br>⚠️ Alerte : variance de prix de <strong>12%</strong> sur l'excavation ce mois-ci (28.50$/m³ vs 26.00$/m³ contractuel). 1 facture rejetée pour doublon.`);
-  } else if (q.includes('prix') || q.includes('tarif') || q.includes('price')) {
-    addBotMessage(`📋 Analyse des <strong>listes de prix</strong> :<br><br>• Pierre 0-3/4 : 40$ à 44$/tonne selon fournisseur<br>• MG-20 : 37.25$ à 39.50$/tonne<br>• Asphalte chaud : 125$ à 128$/tonne<br>• Excavation : 24.50$ à 28.50$/m³<br><br>💡 Carrière Laval offre des prix <strong>3.5% inférieurs</strong> à Pierre Excavation pour le MG-20 sur le même projet.`);
-  } else if (q.includes('doublon') || q.includes('duplicate')) {
-    addBotMessage(`🚨 <strong>1 facture en doublon</strong> détectée et rejetée ce mois :<br><br>• <code>PE-2024-0885</code> — Pierre Excavation Inc.<br>• Montant : ${formatCurrency(52000)}<br>• Les tickets de livraison étaient déjà associés à la facture PE-2024-0870<br><br>✅ Économie réalisée : <strong>52 000$</strong> grâce à la détection automatique.`);
-  } else {
-    const responses = [
-      `Bonne question! D'après mes analyses, voici ce que je peux vous dire :<br><br>• ${kpis.total} factures traitées ce mois<br>• ${kpis.anomalies} anomalies à surveiller<br>• Taux d'auto-approbation : ${kpis.autoApprovedPct}%<br><br>Voulez-vous que j'approfondisse un aspect en particulier?`,
-      `Je n'ai pas de réponse spécifique pour cette question, mais voici les <strong>alertes prioritaires</strong> :<br><br>• ⚠️ Variance de prix Pierre Excavation (+12%)<br>• ⏰ 3 factures en attente depuis 48h+<br>• 💰 Projet Montoni à 85% du budget<br><br>Essayez de me poser des questions sur les anomalies, budgets, fournisseurs ou factures en attente.`,
-    ];
-    addBotMessage(responses[Math.floor(Math.random() * responses.length)]);
+    hideTyping();
+
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.error?.message || `API error ${response.status}`);
+    }
+
+    const data = await response.json();
+    const reply = markdownToHtml(data.choices[0].message.content);
+    addBotMessage(reply);
+  } catch (error) {
+    hideTyping();
+    addBotMessage(`⚠️ Erreur de connexion IA : <code>${error.message}</code><br><br>Vérifiez votre connexion internet et réessayez.`, false);
   }
 }
 
