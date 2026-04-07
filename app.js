@@ -890,7 +890,7 @@ function toggleChat() {
 
 function initChat() {
   conversationHistory = [{ role: 'system', content: buildSystemPrompt() }];
-  addBotMessage(`Bonjour Jean-Philippe! 👋 Je suis l'assistant IA de <strong>JPM Ops</strong>, propulsé par intelligence artificielle. Posez-moi n'importe quelle question sur vos opérations.<div class="chat-suggestions"><button class="chat-suggestion-btn" onclick="askChat('Quelles sont les anomalies en cours?')">Anomalies en cours</button><button class="chat-suggestion-btn" onclick="askChat('État du budget Montoni Phase 3')">Budget Montoni</button><button class="chat-suggestion-btn" onclick="askChat('Quels sont mes top fournisseurs?')">Top fournisseurs</button><button class="chat-suggestion-btn" onclick="askChat('Résumé des opérations du mois')">Résumé mensuel</button></div>`, false);
+  addBotMessage(`Bonjour Alexandre! 👋 Je suis l'assistant IA de <strong>JPM Ops</strong>, propulsé par intelligence artificielle. Posez-moi n'importe quelle question sur vos opérations.<div class="chat-suggestions"><button class="chat-suggestion-btn" onclick="askChat('Quelles sont les anomalies en cours?')">Anomalies en cours</button><button class="chat-suggestion-btn" onclick="askChat('État du budget Montoni Phase 3')">Budget Montoni</button><button class="chat-suggestion-btn" onclick="askChat('Quels sont mes top fournisseurs?')">Top fournisseurs</button><button class="chat-suggestion-btn" onclick="askChat('Résumé des opérations du mois')">Résumé mensuel</button></div>`, false);
 }
 
 function addBotMessage(html, addToHistory = true) {
@@ -909,7 +909,7 @@ function renderChatMessages() {
   const container = document.getElementById('chat-messages');
   container.innerHTML = chatMessages.map(m => `
     <div class="chat-msg ${m.role}">
-      <div class="chat-msg-avatar">${m.role === 'bot' ? '✦' : 'JPM'}</div>
+      <div class="chat-msg-avatar">${m.role === 'bot' ? '✦' : 'AT'}</div>
       <div class="chat-msg-bubble">${m.html}</div>
     </div>
   `).join('');
