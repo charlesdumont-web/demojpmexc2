@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="JPM Excavation — Plateforme intelligente de gestion des comptes fournisseurs et validation automatisée des factures pour l'industrie de la construction.">
+  <title>JPM Ops — Plateforme Opérations IA | JPM Excavation</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%233b82f6'/><text x='50%25' y='55%25' dominant-baseline='middle' text-anchor='middle' fill='white' font-family='sans-serif' font-weight='800' font-size='14'>JP</text></svg>">
+</head>
+<body>
+  <div class="app-layout">
+    <!-- ====== SIDEBAR ====== -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-brand">
+        <div class="sidebar-brand-logo">
+          <div class="sidebar-brand-icon">JP</div>
+          <span class="sidebar-brand-name">JPM Ops</span>
+        </div>
+        <div class="sidebar-brand-sub">JPM Excavation</div>
+      </div>
+
+      <nav class="sidebar-nav">
+        <div class="sidebar-section-label">Principal</div>
+        <div class="sidebar-link active" data-page="dashboard" id="nav-dashboard">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+          Tableau de bord
+        </div>
+        <div class="sidebar-link" data-page="invoices" id="nav-invoices">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+          Factures
+          <span class="sidebar-badge warning" id="badge-invoices">3</span>
+        </div>
+
+        <div class="sidebar-section-label">Référence</div>
+        <div class="sidebar-link" data-page="purchase-orders" id="nav-purchase-orders">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M9 14l2 2 4-4"/></svg>
+          Bons de commande
+        </div>
+        <div class="sidebar-link" data-page="price-lists" id="nav-price-lists">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+          Listes de prix
+        </div>
+        <div class="sidebar-link" data-page="delivery-tickets" id="nav-delivery-tickets">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="3" width="15" height="13" rx="2"/><polygon points="16 8 20 8 23 11 23 16 16 16 16 8"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+          Tickets de livraison
+        </div>
+        <div class="sidebar-link" data-page="projects" id="nav-projects">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 20h20"/><path d="M5 20V8l7-5 7 5v12"/><path d="M9 20v-4h6v4"/></svg>
+          Projets
+        </div>
+      </nav>
+
+      <div class="sidebar-user">
+        <div class="sidebar-avatar">JPM</div>
+        <div class="sidebar-user-info">
+          <div class="sidebar-user-name">Jean-Philippe Morin</div>
+          <div class="sidebar-user-role">Directeur des opérations</div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- ====== MAIN CONTENT ====== -->
+    <main class="main-content" id="main-content">
+      <!-- Dynamic content rendered by app.js -->
+    </main>
+  </div>
+
+  <!-- ====== AI INSIGHTS PANEL ====== -->
+  <div class="ai-panel" id="ai-panel">
+    <div class="ai-panel-header" id="ai-panel-header">
+      <div class="ai-panel-header-icon">✦</div>
+      <div class="ai-panel-header-title">JPM IA — Insights</div>
+      <div class="ai-panel-header-badge" id="ai-panel-badge">6</div>
+      <div class="ai-panel-toggle">▼</div>
+    </div>
+    <div class="ai-panel-body" id="ai-panel-body">
+      <!-- Rendered by app.js -->
+    </div>
+  </div>
+
+  <!-- ====== TOAST CONTAINER ====== -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <script src="data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
